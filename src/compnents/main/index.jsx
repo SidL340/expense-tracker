@@ -49,6 +49,15 @@ export default function Main() {
     setTotalIncome(income);
   }, [allTransactions, setTotalExpense, setTotalIncome]);
 
+  // Function to clear all transactions
+  const clearAllTransactions = () => {
+    setAllTransactions([]); // Reset the transactions in the state
+    setTotalIncome(0); // Reset income total
+    setTotalExpense(0); // Reset expense total
+    localStorage.removeItem("transactions"); // Clear the local storage
+    console.log("All transactions have been cleared.");
+  };
+
   // Debugging logs
   console.log("All Transactions:", allTransactions);
   const incomeTransactions = allTransactions.filter((item) => item.type === "income");
@@ -66,6 +75,9 @@ export default function Main() {
         <Flex alignItems={"center"}>
           <Button onClick={onOpen} bg={"blue.300"} color={"black"} ml={"4"}>
             Add New Transaction
+          </Button>
+          <Button onClick={clearAllTransactions} bg={"red.300"} color={"white"} ml={"4"}>
+            Clear All Transactions
           </Button>
         </Flex>
       </Flex>
