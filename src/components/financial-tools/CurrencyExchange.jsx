@@ -9,9 +9,34 @@ export default function CurrencyExchange() {
   const [converted, setConverted] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Complete list of all ISO 4217 currency codes
   const currencies = [
-    'USD', 'EUR', 'GBP', 'JPY', 'AUD', 
-    'CAD', 'CHF', 'CNY', 'INR', 'SGD'
+    'AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN',
+    'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BOV', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD',
+    'CAD', 'CDF', 'CHE', 'CHF', 'CHW', 'CLF', 'CLP', 'CNY', 'COP', 'COU', 'CRC', 'CUC', 'CUP', 'CVE', 'CZK',
+    'DJF', 'DKK', 'DOP', 'DZD',
+    'EGP', 'ERN', 'ETB', 'EUR',
+    'FJD', 'FKP',
+    'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD',
+    'HKD', 'HNL', 'HRK', 'HTG', 'HUF',
+    'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK',
+    'JMD', 'JOD', 'JPY',
+    'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT',
+    'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD',
+    'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MXV', 'MYR', 'MZN',
+    'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD',
+    'OMR',
+    'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG',
+    'QAR',
+    'RON', 'RSD', 'RUB', 'RWF',
+    'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SLL', 'SOS', 'SRD', 'SSP', 'STN', 'SVC', 'SYP', 'SZL',
+    'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS',
+    'UAH', 'UGX', 'USD', 'USN', 'UYI', 'UYU', 'UYW', 'UZS',
+    'VED', 'VES', 'VND', 'VUV',
+    'WST',
+    'XAF', 'XAG', 'XAU', 'XBA', 'XBB', 'XBC', 'XBD', 'XCD', 'XDR', 'XOF', 'XPD', 'XPF', 'XPT', 'XSU', 'XTS', 'XUA', 'XXX',
+    'YER',
+    'ZAR', 'ZMW', 'ZWL'
   ];
 
   useEffect(() => {
@@ -26,19 +51,32 @@ export default function CurrencyExchange() {
         }
       } catch (error) {
         console.error("Error fetching rates:", error);
+        // Fallback to free API if primary fails
+        try {
+          const fallbackResponse = await fetch(`https://api.exchangerate.host/latest?base=${fromCurrency}`);
+          const fallbackData = await fallbackResponse.json();
+          setRates(fallbackData.rates);
+          if (fallbackData.rates[toCurrency] && amount) {
+            setConverted((parseFloat(amount) * fallbackData.rates[toCurrency]).toFixed(2));
+          }
+        } catch (fallbackError) {
+          console.error("Fallback API also failed:", fallbackError);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchRates();
-  }, [fromCurrency]);
+  }, [fromCurrency, toCurrency, amount]);
 
-  useEffect(() => {
-    if (rates[toCurrency] && amount) {
-      setConverted((parseFloat(amount) * rates[toCurrency]).toFixed(2));
+  const handleAmountChange = (e) => {
+    const value = parseFloat(e.target.value) || 0;
+    setAmount(value);
+    if (rates[toCurrency]) {
+      setConverted((value * rates[toCurrency]).toFixed(2));
     }
-  }, [amount, toCurrency, rates]);
+  };
 
   return (
     <Box p={4} borderWidth="1px" borderRadius="lg">
@@ -47,8 +85,10 @@ export default function CurrencyExchange() {
         <Input 
           type="number" 
           value={amount} 
-          onChange={(e) => setAmount(e.target.value)} 
+          onChange={handleAmountChange}
           placeholder="Amount"
+          min="0"
+          step="0.01"
         />
         
         <Select 
