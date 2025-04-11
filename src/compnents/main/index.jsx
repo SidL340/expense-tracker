@@ -1,18 +1,30 @@
-import { Button, Flex, Heading, useDisclosure } from "@chakra-ui/react";
+import { 
+  Button, 
+  Flex, 
+  Heading, 
+  Text, 
+  Avatar, 
+  Box 
+} from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/hooks";
 import Overview from "../overview/overview";
 import ExpenseView from "../expense-view";
 import { useContext, useEffect } from "react";
 import { GlobalContext } from "../../context";
+import { useNavigate } from "react-router-dom";
 
 export default function Main() {
+  const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     totalExpense,
     allTransactions,
-    setAllTransactions,  // Assuming you have this to update transactions in the context
+    setAllTransactions,
     setTotalExpense,
     totalIncome,
     setTotalIncome,
+    currentUser,
+    logoutUser
   } = useContext(GlobalContext);
 
   // Load transactions from local storage when the component mounts
@@ -66,18 +78,51 @@ export default function Main() {
   return (
     <Flex textAlign={"center"} flexDirection={"column"} pr={"5"} pl={"5"}>
       <Flex alignItems={"center"} justifyContent={"space-between"} mt={"12"}>
-        <Heading
-          color={"blue.400"}
-          display={["none", "block", "block", "block", "block"]}
-        >
-          Expense Tracker
-        </Heading>
+        <Flex alignItems={"center"}>
+          <Avatar name={currentUser?.name} size="sm" mr={2} />
+          <Box>
+            <Heading
+              color={"blue.400"}
+              display={["none", "block", "block", "block", "block"]}
+              size="md"
+            >
+              Expense Tracker
+            </Heading>
+            <Text fontSize="sm" color="gray.600">
+              Welcome, {currentUser?.name}
+            </Text>
+          </Box>
+        </Flex>
         <Flex alignItems={"center"}>
           <Button onClick={onOpen} bg={"blue.300"} color={"black"} ml={"4"}>
             Add New Transaction
           </Button>
-          <Button onClick={clearAllTransactions} bg={"red.300"} color={"white"} ml={"4"}>
+          <Button 
+            onClick={clearAllTransactions} 
+            bg={"red.300"} 
+            color={"white"} 
+            ml={"4"}
+          >
             Clear All Transactions
+          </Button>
+          <Button 
+            onClick={() => navigate('/financial-tools')}
+            bg={"green.300"} 
+            color={"black"} 
+            ml={"4"}
+          >
+            Financial Tools
+          </Button>
+          <Button 
+            onClick={() => {
+              logoutUser();
+              navigate('/login');
+            }}
+            bg={"gray.300"} 
+            color={"black"} 
+            ml={"4"}
+          >
+            Logout
           </Button>
         </Flex>
       </Flex>
