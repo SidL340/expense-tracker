@@ -7,26 +7,35 @@ import {
   Input,
   VStack,
   useToast,
-  Heading
+  Heading,
+  Text,
+  Spinner,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription
 } from "@chakra-ui/react";
 import { GlobalContext } from "../../context";
+import { useNavigate } from "react-router-dom";
 
 export default function SignupForm({ onSuccess }) {
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { registerUser } = useContext(GlobalContext);
+  const { registerUser, verificationSent, isLoading: authLoading } = useContext(GlobalContext);
   const toast = useToast();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Basic validation
-    if (!name || !email || !password) {
+    if (password !== confirmPassword) {
       toast({
-        title: "All fields are required",
+        title: "Error",
+        description: "Passwords do not match",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -35,38 +44,78 @@ export default function SignupForm({ onSuccess }) {
       return;
     }
 
-    setTimeout(() => {
-      try {
-        registerUser({ name, email, password });
-        toast({
-          title: "Account created",
-          description: "You have been logged in automatically",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-        onSuccess?.();
-      } catch (error) {
-        toast({
-          title: "Registration failed",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
+    try {
+      await registerUser(email, password, name);
+      toast({
+        title: "Verification email sent",
+        description: "Please check your email to verify your account",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
+
+  if (authLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minH="100vh">
+        <Spinner size="xl" />
+      </Box>
+    );
+  }
+
+  if (verificationSent) {
+    return (
+      <Box p={8} maxWidth="500px" mx="auto">
+        <Alert
+          status="info"
+          variant="subtle"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          textAlign="center"
+          height="200px"
+          borderRadius="lg"
+        >
+          <AlertIcon boxSize="40px" mr={0} />
+          <AlertTitle mt={4} mb={1} fontSize="lg">
+            Verification Email Sent
+          </AlertTitle>
+          <AlertDescription maxWidth="sm">
+            Please check your email and click the verification link to activate your account.
+            You can then proceed to login.
+          </AlertDescription>
+          <Button
+            mt={4}
+            colorScheme="blue"
+            onClick={() => navigate('/login')}
+          >
+            Go to Login
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box p={8} maxWidth="500px" mx="auto">
-      <Heading mb={6} textAlign="center">Create Account</Heading>
+      <Heading mb={6} textAlign="center">Sign Up</Heading>
       <form onSubmit={handleSubmit}>
         <VStack spacing={4}>
           <FormControl isRequired>
             <FormLabel>Name</FormLabel>
             <Input
+              type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter your name"
@@ -89,7 +138,17 @@ export default function SignupForm({ onSuccess }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a password"
+              placeholder="Enter your password"
+            />
+          </FormControl>
+
+          <FormControl isRequired>
+            <FormLabel>Confirm Password</FormLabel>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm your password"
             />
           </FormControl>
 
@@ -101,6 +160,15 @@ export default function SignupForm({ onSuccess }) {
             loadingText="Creating account..."
           >
             Sign Up
+          </Button>
+
+          <Button
+            onClick={() => navigate('/login')}
+            variant="link"
+            colorScheme="blue"
+            mt={4}
+          >
+            Already have an account? Login
           </Button>
         </VStack>
       </form>

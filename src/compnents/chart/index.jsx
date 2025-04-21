@@ -1,7 +1,7 @@
 import Chart from "react-apexcharts";
 
 const options = {
-  labels: ["Income", "Expense"],
+  labels: ["Savings", "Expense"],
   colors: ["#213ebf","#FD5E53"],
   chart: {
     width: "50px",
@@ -45,10 +45,11 @@ const options = {
 };
 
 export default function TransactionChartSummary({expense = 100, income = 100}) {
+  const savings = income - expense > 0 ? income - expense : 0;
   return (
     <Chart
       options={options}
-      series={[income, expense]}
+      series={[savings, expense]}
       type="pie"
       width={"100%"}
       height={"100%"}

@@ -4,6 +4,7 @@ import FinancialTools from "./components/financial-tools";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginForm from "./components/auth/LoginForm";
 import SignupForm from "./components/auth/SignupForm";
+import ForgotPassword from "./components/auth/ForgotPassword";
 import { GlobalContext } from "./context";
 import { useContext } from "react";
 
@@ -42,6 +43,11 @@ function App() {
               <Route path="/signup" element={
                 <AuthRoute>
                   <SignupForm />
+                </AuthRoute>
+              } />
+              <Route path="/forgot-password" element={
+                <AuthRoute>
+                  <ForgotPassword />
                 </AuthRoute>
               } />
             </Routes>

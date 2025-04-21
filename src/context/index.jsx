@@ -1,4 +1,25 @@
 import { createContext, useState, useEffect } from "react";
+import { auth, googleProvider } from "../firebase";
+import { 
+  signInWithEmailAndPassword, 
+  signInWithPopup, 
+  signOut,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  updateProfile,
+  sendPasswordResetEmail
+} from "firebase/auth";
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  deleteDoc, 
+  doc,
+  getFirestore
+} from "firebase/firestore";
 
 export const GlobalContext = createContext(null);
 
@@ -14,67 +35,158 @@ export default function GlobalState({ children }) {
   const [allTransactions, setAllTransactions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [verificationSent, setVerificationSent] = useState(false);
 
-  // Load user from localStorage on initial render
+  const db = getFirestore();
+
+  // Listen for auth state changes
   useEffect(() => {
-    const user = localStorage.getItem('currentUser');
-    if (user) {
-      setCurrentUser(JSON.parse(user));
-      setIsAuthenticated(true);
-      loadUserTransactions(JSON.parse(user).id);
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+        setIsAuthenticated(user.emailVerified);
+        if (!user.emailVerified) {
+          loadUserTransactions(user.uid);
+        }
+      } else {
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+        setAllTransactions([]);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  function handleFormSubmit(currentformdata) {
+  async function handleFormSubmit(currentformdata) {
     if (currentformdata.description && currentformdata.amount) {
-      const newTransaction = { 
-        ...currentformdata, 
-        id: Date.now(),
-        userId: currentUser?.id 
-      };
-      setAllTransactions([...allTransactions, newTransaction]);
+      try {
+        const newTransaction = { 
+          ...currentformdata, 
+          userId: currentUser.uid,
+          createdAt: new Date().toISOString()
+        };
+        
+        const docRef = await addDoc(collection(db, "transactions"), newTransaction);
+        setAllTransactions([...allTransactions, { ...newTransaction, id: docRef.id }]);
+      } catch (error) {
+        console.error("Error adding transaction: ", error);
+      }
     }
   }
 
-  function loadUserTransactions(userId) {
-    const userTransactions = localStorage.getItem(`transactions_${userId}`);
-    if (userTransactions) {
-      setAllTransactions(JSON.parse(userTransactions));
+  async function loadUserTransactions(userId) {
+    try {
+      const q = query(collection(db, "transactions"), where("userId", "==", userId));
+      const querySnapshot = await getDocs(q);
+      const transactions = [];
+      querySnapshot.forEach((doc) => {
+        transactions.push({ ...doc.data(), id: doc.id });
+      });
+      setAllTransactions(transactions);
+    } catch (error) {
+      console.error("Error loading transactions: ", error);
     }
   }
 
-  function saveUserTransactions(userId, transactions) {
-    localStorage.setItem(`transactions_${userId}`, JSON.stringify(transactions));
+  async function deleteTransaction(transactionId) {
+    try {
+      await deleteDoc(doc(db, "transactions", transactionId));
+      setAllTransactions(allTransactions.filter(t => t.id !== transactionId));
+    } catch (error) {
+      console.error("Error deleting transaction: ", error);
+    }
   }
 
-  function loginUser(user) {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    loadUserTransactions(user.id);
+  async function loginUser(email, password) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      if (!userCredential.user.emailVerified) {
+        throw new Error("Please verify your email before logging in");
+      }
+      return userCredential.user;
+    } catch (error) {
+      throw error;
+    }
   }
 
-  function logoutUser() {
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    setAllTransactions([]);
-    localStorage.removeItem('currentUser');
+  async function loginWithGoogle() {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    } catch (error) {
+      throw error;
+    }
   }
 
-  function registerUser(user) {
-    // In a real app, you would hash the password before storing
-    const newUser = { ...user, id: Date.now() };
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    localStorage.setItem('users', JSON.stringify([...users, newUser]));
-    loginUser(newUser);
+  async function registerUser(email, password, name) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Update user profile with name
+      await updateProfile(user, {
+        displayName: name
+      });
+
+      // Send verification email
+      await sendEmailVerification(user);
+      setVerificationSent(true);
+
+      return user;
+    } catch (error) {
+      throw error;
+    }
   }
 
-  // Save transactions when they change
+  async function resendVerificationEmail() {
+    try {
+      if (currentUser) {
+        await sendEmailVerification(currentUser);
+        setVerificationSent(true);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async function logoutUser() {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  }
+
+  async function resetPassword(email) {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Calculate totals whenever transactions change
   useEffect(() => {
-    if (currentUser && allTransactions.length > 0) {
-      saveUserTransactions(currentUser.id, allTransactions);
-    }
-  }, [allTransactions, currentUser]);
+    let income = 0;
+    let expense = 0;
+
+    allTransactions.forEach((item) => {
+      if (item.type === "income") {
+        income += parseFloat(item.amount);
+      } else {
+        expense += parseFloat(item.amount);
+      }
+    });
+
+    setTotalExpense(expense);
+    setTotalIncome(income);
+  }, [allTransactions]);
 
   return (
     <GlobalContext.Provider value={{
@@ -89,11 +201,17 @@ export default function GlobalState({ children }) {
       allTransactions,
       setAllTransactions,
       handleFormSubmit,
+      deleteTransaction,
       currentUser,
       isAuthenticated,
+      isLoading,
+      verificationSent,
       loginUser,
+      loginWithGoogle,
       logoutUser,
-      registerUser
+      registerUser,
+      resendVerificationEmail,
+      resetPassword
     }}>
       {children}
     </GlobalContext.Provider>

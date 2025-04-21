@@ -4,7 +4,8 @@ import {
   Heading, 
   Text, 
   Avatar, 
-  Box 
+  Box,
+  Spinner
 } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/hooks";
 import Overview from "../overview/overview";
@@ -24,32 +25,16 @@ export default function Main() {
     totalIncome,
     setTotalIncome,
     currentUser,
-    logoutUser
+    logoutUser,
+    isLoading
   } = useContext(GlobalContext);
 
-  // Load transactions from local storage when the component mounts
+  // Recalculate totals whenever transactions change
   useEffect(() => {
-    const storedTransactions = localStorage.getItem("transactions");
-    if (storedTransactions) {
-      console.log("Loading transactions from local storage...");
-      setAllTransactions(JSON.parse(storedTransactions));
-    }
-  }, [setAllTransactions]);
-
-  // Save transactions to local storage when allTransactions changes
-  useEffect(() => {
-    console.log("Saving transactions to local storage...");
-    localStorage.setItem("transactions", JSON.stringify(allTransactions));
-  }, [allTransactions]);
-
-  // Recalculate totals whenever allTransactions changes
-  useEffect(() => {
-    console.log("Calculating totals...");
     let income = 0;
     let expense = 0;
 
     allTransactions.forEach((item) => {
-      console.log(`Processing transaction: ${item.description}, Type: ${item.type}, Amount: ${item.amount}`);
       if (item.type === "income") {
         income += parseFloat(item.amount);
       } else {
@@ -61,25 +46,24 @@ export default function Main() {
     setTotalIncome(income);
   }, [allTransactions, setTotalExpense, setTotalIncome]);
 
-  // Function to clear all transactions
-  const clearAllTransactions = () => {
-    setAllTransactions([]); // Reset the transactions in the state
-    setTotalIncome(0); // Reset income total
-    setTotalExpense(0); // Reset expense total
-    localStorage.removeItem("transactions"); // Clear the local storage
-    console.log("All transactions have been cleared.");
+  const handleLogout = async () => {
+    await logoutUser();
+    navigate('/login');
   };
 
-  // Debugging logs
-  console.log("All Transactions:", allTransactions);
-  const incomeTransactions = allTransactions.filter((item) => item.type === "income");
-  console.log("Filtered Income Transactions:", incomeTransactions);
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minH="100vh">
+        <Spinner size="xl" />
+      </Box>
+    );
+  }
 
   return (
     <Flex textAlign={"center"} flexDirection={"column"} pr={"5"} pl={"5"}>
       <Flex alignItems={"center"} justifyContent={"space-between"} mt={"12"}>
         <Flex alignItems={"center"}>
-          <Avatar name={currentUser?.name} size="sm" mr={2} />
+          <Avatar name={currentUser?.displayName || currentUser?.email} size="sm" mr={2} />
           <Box>
             <Heading
               color={"blue.400"}
@@ -89,21 +73,13 @@ export default function Main() {
               Expense Tracker
             </Heading>
             <Text fontSize="sm" color="gray.600">
-              Welcome, {currentUser?.name}
+              Welcome, {currentUser?.displayName || currentUser?.email}
             </Text>
           </Box>
         </Flex>
         <Flex alignItems={"center"}>
           <Button onClick={onOpen} bg={"blue.300"} color={"black"} ml={"4"}>
             Add New Transaction
-          </Button>
-          <Button 
-            onClick={clearAllTransactions} 
-            bg={"red.300"} 
-            color={"white"} 
-            ml={"4"}
-          >
-            Clear All Transactions
           </Button>
           <Button 
             onClick={() => navigate('/financial-tools')}
@@ -114,10 +90,7 @@ export default function Main() {
             Financial Tools
           </Button>
           <Button 
-            onClick={() => {
-              logoutUser();
-              navigate('/login');
-            }}
+            onClick={handleLogout}
             bg={"gray.300"} 
             color={"black"} 
             ml={"4"}
@@ -144,7 +117,7 @@ export default function Main() {
           type={"expense"}
         />
         <ExpenseView
-          data={incomeTransactions} // Using the filtered variable here
+          data={allTransactions.filter((item) => item.type === "income")}
           type={"income"}
         />
       </Flex>
