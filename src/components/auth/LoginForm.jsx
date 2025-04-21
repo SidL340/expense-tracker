@@ -148,7 +148,7 @@ export default function LoginForm() {
           textAlign="center"
           className={isLargerThan768 ? 'slide-in' : 'mobile-slide-in'}
         >
-          Welcome Back
+          Personal Financial Tracker
         </Heading>
         <Text 
           mb={6} 
